@@ -1,24 +1,10 @@
 const express = require('express');
 const http = require('http');
-const { Server } = require('socket.io');
+const socketIo = require('socket.io');
 const cors = require('cors');
 const path = require('path');
-const { nanoid } = require('nanoid');
+const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
-
-// 游戏状态管理
-const { 
-  createRoom, 
-  joinRoom, 
-  leaveRoom, 
-  getRooms, 
-  getRoom, 
-  makeMove, 
-  switchPlayer,
-  addSpectator,
-  removeSpectator,
-  spectatorJoinGame
-} = require('./controllers/gameController');
 
 const app = express();
 app.use(cors());
@@ -26,393 +12,602 @@ app.use(express.json());
 
 // 生产环境下提供静态文件
 if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../client/dist')));
+  app.use(express.static(path.join(__dirname, '../client/build')));
   
   app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+    res.sendFile(path.join(__dirname, '../client/build/index.html'));
   });
 }
 
 const server = http.createServer(app);
-
-// 设置Socket.IO
-const io = new Server(server, {
+const io = socketIo(server, {
   cors: {
-    origin: process.env.NODE_ENV === 'production' ? false : ['http://localhost:5173'],
+    origin: process.env.NODE_ENV === 'production' ? '*' : 'http://localhost:3000',
     methods: ['GET', 'POST']
   }
 });
 
-// 在线用户管理
-let onlineUsers = {};
+// 游戏房间数据
+const rooms = {};
 
-// Socket.IO连接处理
+// 在线用户
+const onlineUsers = {};
+
+// 游戏逻辑
+const BOARD_SIZE = 15;
+const WIN_CONDITION = 5;
+
+// 检查是否获胜
+function checkWin(board, row, col, player) {
+  const directions = [
+    [0, 1],   // 水平
+    [1, 0],   // 垂直
+    [1, 1],   // 对角线
+    [1, -1]   // 反对角线
+  ];
+
+  for (const [dx, dy] of directions) {
+    let count = 1; // 当前位置已经有一个棋子
+
+    // 正向检查
+    for (let i = 1; i < WIN_CONDITION; i++) {
+      const newRow = row + i * dx;
+      const newCol = col + i * dy;
+      if (
+        newRow >= 0 && newRow < BOARD_SIZE &&
+        newCol >= 0 && newCol < BOARD_SIZE &&
+        board[newRow][newCol] === player
+      ) {
+        count++;
+      } else {
+        break;
+      }
+    }
+
+    // 反向检查
+    for (let i = 1; i < WIN_CONDITION; i++) {
+      const newRow = row - i * dx;
+      const newCol = col - i * dy;
+      if (
+        newRow >= 0 && newRow < BOARD_SIZE &&
+        newCol >= 0 && newCol < BOARD_SIZE &&
+        board[newRow][newCol] === player
+      ) {
+        count++;
+      } else {
+        break;
+      }
+    }
+
+    if (count >= WIN_CONDITION) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// 创建空棋盘
+function createEmptyBoard() {
+  return Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(null));
+}
+
+// Socket.io 连接处理
 io.on('connection', (socket) => {
-  console.log(`用户已连接: ${socket.id}`);
+  console.log(`用户连接: ${socket.id}`);
   
-  // 用户加入系统
-  socket.on('user:join', ({ username }) => {
-    onlineUsers[socket.id] = { id: socket.id, username, roomId: null };
-    console.log(`用户 ${username} (${socket.id}) 已加入系统`);
+  // 用户加入
+  socket.on('user_join', ({ username }) => {
+    onlineUsers[socket.id] = {
+      id: socket.id,
+      username: username || `玩家${Object.keys(onlineUsers).length + 1}`,
+      roomId: null
+    };
     
-    // 通知用户已成功连接
-    socket.emit('user:joined', { id: socket.id, username });
-  });
-  
-  // 获取房间列表
-  socket.on('rooms:get', () => {
-    const publicRooms = getRooms().filter(room => !room.isPrivate);
-    socket.emit('rooms:list', publicRooms);
+    // 通知所有用户更新在线列表
+    io.emit('update_online_users', Object.values(onlineUsers));
+    
+    // 发送房间列表给新用户
+    const publicRooms = Object.entries(rooms)
+      .filter(([_, room]) => !room.isPrivate)
+      .map(([id, room]) => ({
+        id,
+        name: room.name,
+        players: room.players.length,
+        maxPlayers: 2,
+        hasPassword: !!room.password,
+        status: room.gameStarted ? '游戏中' : '等待中'
+      }));
+    
+    socket.emit('room_list', publicRooms);
   });
   
   // 创建房间
-  socket.on('room:create', ({ roomName, isPrivate, password }) => {
-    if (!onlineUsers[socket.id]) return;
-    
-    const roomId = nanoid(6);
+  socket.on('create_room', ({ name, isPrivate, password }) => {
     const user = onlineUsers[socket.id];
+    if (!user) return;
     
-    const room = createRoom({
+    // 如果用户已经在房间中，先离开
+    if (user.roomId && rooms[user.roomId]) {
+      leaveRoom(socket, user.roomId);
+    }
+    
+    const roomId = uuidv4();
+    rooms[roomId] = {
       id: roomId,
-      name: roomName,
-      isPrivate,
-      password,
-      createdBy: user.id
-    });
+      name: name || `${user.username}的房间`,
+      isPrivate: isPrivate || false,
+      password: password || null,
+      players: [{
+        id: socket.id,
+        username: user.username,
+        role: null // 'black' 或 'white'
+      }],
+      spectators: [],
+      board: createEmptyBoard(),
+      currentTurn: null,
+      gameStarted: false,
+      moveHistory: [],
+      blackMoves: 0,
+      whiteMoves: 0,
+      startTime: null,
+      lastMoveTime: null,
+      timeoutTimers: {}
+    };
     
-    // 更新用户状态
-    onlineUsers[socket.id].roomId = roomId;
+    // 更新用户房间信息
+    user.roomId = roomId;
+    onlineUsers[socket.id] = user;
     
     // 加入房间
     socket.join(roomId);
     
-    // 通知用户房间已创建
-    socket.emit('room:created', { roomId, room });
+    // 通知用户房间创建成功
+    socket.emit('room_created', {
+      roomId,
+      isPrivate: rooms[roomId].isPrivate
+    });
     
-    // 如果是公开房间，通知所有用户有新房间
+    // 更新房间信息
+    updateRoomInfo(roomId);
+    
+    // 如果是公开房间，更新房间列表
     if (!isPrivate) {
-      io.emit('room:new', { 
-        id: room.id, 
-        name: room.name, 
-        players: room.players.length,
-        spectators: room.spectators.length,
-        hasPassword: !!room.password
-      });
+      updatePublicRoomList();
     }
   });
   
   // 加入房间
-  socket.on('room:join', ({ roomId, password }) => {
-    if (!onlineUsers[socket.id]) return;
+  socket.on('join_room', ({ roomId, password }) => {
+    const user = onlineUsers[socket.id];
+    if (!user) return;
     
-    const room = getRoom(roomId);
-    if (!room) {
+    // 检查房间是否存在
+    if (!rooms[roomId]) {
       return socket.emit('error', { message: '房间不存在' });
     }
+    
+    const room = rooms[roomId];
     
     // 检查密码
     if (room.password && room.password !== password) {
       return socket.emit('error', { message: '密码错误' });
     }
     
-    const user = onlineUsers[socket.id];
-    
-    // 决定是作为玩家还是观众加入
-    let joinedAsPlayer = false;
-    
-    if (room.players.length < 2) {
-      // 作为玩家加入
-      joinRoom(roomId, { id: user.id, username: user.username });
-      joinedAsPlayer = true;
-      
-      // 如果现在有两名玩家，开始游戏
-      const updatedRoom = getRoom(roomId);
-      if (updatedRoom.players.length === 2) {
-        // 随机决定谁是黑子（先手）
-        const blackPlayerIndex = Math.round(Math.random());
-        updatedRoom.players[blackPlayerIndex].isBlack = true;
-        updatedRoom.currentPlayer = updatedRoom.players[blackPlayerIndex].id;
-        updatedRoom.gameStarted = true;
-        updatedRoom.startTime = Date.now();
-        updatedRoom.lastMoveTime = Date.now();
-      }
-    } else {
-      // 作为观众加入
-      addSpectator(roomId, { id: user.id, username: user.username });
+    // 如果用户已经在房间中，先离开
+    if (user.roomId && rooms[user.roomId]) {
+      leaveRoom(socket, user.roomId);
     }
     
-    // 更新用户状态
-    onlineUsers[socket.id].roomId = roomId;
+    // 更新用户房间信息
+    user.roomId = roomId;
+    onlineUsers[socket.id] = user;
     
     // 加入房间
     socket.join(roomId);
     
-    // 通知用户已加入房间
-    socket.emit('room:joined', { 
-      room: getRoom(roomId), 
-      joinedAsPlayer 
-    });
+    // 决定用户角色
+    if (room.players.length < 2 && !room.gameStarted) {
+      // 作为玩家加入
+      room.players.push({
+        id: socket.id,
+        username: user.username,
+        role: null
+      });
+      
+      // 如果房间已满，开始游戏
+      if (room.players.length === 2) {
+        startGame(roomId);
+      }
+    } else {
+      // 作为观众加入
+      room.spectators.push({
+        id: socket.id,
+        username: user.username
+      });
+    }
     
-    // 通知房间内其他人有新用户加入
-    socket.to(roomId).emit('room:user_joined', { 
-      user: { id: user.id, username: user.username },
-      joinedAsPlayer
-    });
+    // 通知用户加入成功
+    socket.emit('room_joined', { roomId });
     
-    // 更新房间列表
-    const publicRooms = getRooms().filter(r => !r.isPrivate);
-    io.emit('rooms:list', publicRooms);
+    // 更新房间信息
+    updateRoomInfo(roomId);
+    
+    // 如果是公开房间，更新房间列表
+    if (!room.isPrivate) {
+      updatePublicRoomList();
+    }
+  });
+  
+  // 离开房间
+  socket.on('leave_room', () => {
+    const user = onlineUsers[socket.id];
+    if (!user || !user.roomId) return;
+    
+    leaveRoom(socket, user.roomId);
   });
   
   // 下棋
-  socket.on('game:move', ({ roomId, position }) => {
-    if (!onlineUsers[socket.id] || onlineUsers[socket.id].roomId !== roomId) return;
+  socket.on('make_move', ({ row, col }) => {
+    const user = onlineUsers[socket.id];
+    if (!user || !user.roomId) return;
     
-    const room = getRoom(roomId);
-    if (!room || !room.gameStarted) {
+    const roomId = user.roomId;
+    const room = rooms[roomId];
+    if (!room) return;
+    
+    // 检查游戏是否已开始
+    if (!room.gameStarted) {
       return socket.emit('error', { message: '游戏尚未开始' });
     }
     
+    // 找到玩家
+    const playerIndex = room.players.findIndex(p => p.id === socket.id);
+    if (playerIndex === -1) {
+      return socket.emit('error', { message: '你不是玩家' });
+    }
+    
+    const player = room.players[playerIndex];
+    
     // 检查是否轮到该玩家
-    if (room.currentPlayer !== socket.id) {
+    if (room.currentTurn !== player.role) {
       return socket.emit('error', { message: '现在不是你的回合' });
     }
     
-    // 检查位置是否已被占用
-    if (room.board[position.y][position.x] !== null) {
-      return socket.emit('error', { message: '该位置已被占用' });
+    // 检查位置是否有效
+    if (row < 0 || row >= BOARD_SIZE || col < 0 || col >= BOARD_SIZE) {
+      return socket.emit('error', { message: '无效的位置' });
     }
     
-    // 获取当前玩家是黑子还是白子
-    const currentPlayer = room.players.find(p => p.id === socket.id);
-    const isBlack = currentPlayer.isBlack;
+    // 检查位置是否已被占用
+    if (room.board[row][col] !== null) {
+      return socket.emit('error', { message: '该位置已有棋子' });
+    }
     
-    // 更新棋盘
-    makeMove(roomId, position, isBlack);
+    // 清除超时计时器
+    if (room.timeoutTimers[player.role]) {
+      clearTimeout(room.timeoutTimers[player.role]);
+    }
+    
+    // 放置棋子
+    room.board[row][col] = player.role;
+    
+    // 记录移动
+    const moveTime = Date.now();
+    room.moveHistory.push({
+      player: player.role,
+      row,
+      col,
+      time: moveTime
+    });
+    
+    // 更新移动计数
+    if (player.role === 'black') {
+      room.blackMoves++;
+    } else {
+      room.whiteMoves++;
+    }
+    
+    // 更新最后移动时间
+    room.lastMoveTime = moveTime;
     
     // 检查是否获胜
-    const winner = checkWinner(room.board, position, isBlack);
-    
-    if (winner) {
-      // 游戏结束，有玩家获胜
-      room.gameOver = true;
-      room.winner = socket.id;
-      
-      // 通知所有玩家游戏结果
-      io.to(roomId).emit('game:over', { 
-        winner: { id: socket.id, username: currentPlayer.username },
-        winningLine: winner
+    if (checkWin(room.board, row, col, player.role)) {
+      // 游戏结束，宣布获胜者
+      room.gameStarted = false;
+      io.to(roomId).emit('game_over', {
+        winner: player.role,
+        winnerUsername: player.username
       });
-    } else {
-      // 切换玩家
-      const nextPlayer = switchPlayer(roomId);
-      room.lastMoveTime = Date.now();
       
-      // 通知所有玩家下一步
-      io.to(roomId).emit('game:next_turn', { 
-        nextPlayer,
-        lastMove: { position, isBlack }
-      });
+      // 更新房间信息
+      updateRoomInfo(roomId);
+      return;
     }
+    
+    // 检查是否平局（棋盘已满）
+    const isBoardFull = room.board.every(row => row.every(cell => cell !== null));
+    if (isBoardFull) {
+      room.gameStarted = false;
+      io.to(roomId).emit('game_over', { draw: true });
+      
+      // 更新房间信息
+      updateRoomInfo(roomId);
+      return;
+    }
+    
+    // 切换回合
+    room.currentTurn = player.role === 'black' ? 'white' : 'black';
+    
+    // 设置超时计时器
+    setMoveTimeout(roomId, room.currentTurn);
+    
+    // 通知房间内所有人移动结果
+    io.to(roomId).emit('move_made', {
+      row,
+      col,
+      player: player.role,
+      nextTurn: room.currentTurn
+    });
+    
+    // 更新房间信息
+    updateRoomInfo(roomId);
   });
   
   // 观众加入游戏（替补）
-  socket.on('game:spectator_join', ({ roomId }) => {
-    if (!onlineUsers[socket.id] || onlineUsers[socket.id].roomId !== roomId) return;
+  socket.on('spectator_join_game', () => {
+    const user = onlineUsers[socket.id];
+    if (!user || !user.roomId) return;
     
-    const room = getRoom(roomId);
-    if (!room) {
-      return socket.emit('error', { message: '房间不存在' });
-    }
+    const roomId = user.roomId;
+    const room = rooms[roomId];
+    if (!room) return;
     
-    // 检查是否已经是玩家
-    const isAlreadyPlayer = room.players.some(p => p.id === socket.id);
-    if (isAlreadyPlayer) {
-      return socket.emit('error', { message: '你已经是玩家了' });
+    // 检查用户是否是观众
+    const spectatorIndex = room.spectators.findIndex(s => s.id === socket.id);
+    if (spectatorIndex === -1) {
+      return socket.emit('error', { message: '你不是观众' });
     }
     
     // 检查是否有空位
     if (room.players.length >= 2) {
-      return socket.emit('error', { message: '没有空位可加入' });
+      return socket.emit('error', { message: '没有空位' });
     }
     
-    // 从观众变为玩家
-    const success = spectatorJoinGame(roomId, socket.id);
-    if (!success) {
-      return socket.emit('error', { message: '加入游戏失败' });
+    // 从观众中移除
+    const spectator = room.spectators.splice(spectatorIndex, 1)[0];
+    
+    // 确定角色
+    const existingRole = room.players.length > 0 ? room.players[0].role : null;
+    const newRole = existingRole === 'black' ? 'white' : 'black';
+    
+    // 添加为玩家
+    room.players.push({
+      id: socket.id,
+      username: user.username,
+      role: newRole
+    });
+    
+    // 如果游戏已经开始，设置超时计时器
+    if (room.gameStarted && room.currentTurn === newRole) {
+      setMoveTimeout(roomId, newRole);
     }
     
-    // 如果现在有两名玩家，开始游戏
-    const updatedRoom = getRoom(roomId);
-    if (updatedRoom.players.length === 2 && !updatedRoom.gameStarted) {
-      // 随机决定谁是黑子（先手）
-      const blackPlayerIndex = Math.round(Math.random());
-      updatedRoom.players[blackPlayerIndex].isBlack = true;
-      updatedRoom.currentPlayer = updatedRoom.players[blackPlayerIndex].id;
-      updatedRoom.gameStarted = true;
-      updatedRoom.startTime = Date.now();
-      updatedRoom.lastMoveTime = Date.now();
-    }
+    // 通知房间内所有人
+    io.to(roomId).emit('player_joined', {
+      username: user.username,
+      role: newRole
+    });
     
-    // 通知所有人房间状态更新
-    io.to(roomId).emit('room:updated', { room: updatedRoom });
+    // 更新房间信息
+    updateRoomInfo(roomId);
   });
   
-  // 离开房间
-  socket.on('room:leave', () => {
-    handleUserLeave(socket);
+  // 获取公开房间列表
+  socket.on('get_room_list', () => {
+    const publicRooms = Object.entries(rooms)
+      .filter(([_, room]) => !room.isPrivate)
+      .map(([id, room]) => ({
+        id,
+        name: room.name,
+        players: room.players.length,
+        maxPlayers: 2,
+        hasPassword: !!room.password,
+        status: room.gameStarted ? '游戏中' : '等待中'
+      }));
+    
+    socket.emit('room_list', publicRooms);
   });
   
   // 断开连接
   socket.on('disconnect', () => {
-    console.log(`用户已断开连接: ${socket.id}`);
-    handleUserLeave(socket);
+    console.log(`用户断开连接: ${socket.id}`);
+    
+    const user = onlineUsers[socket.id];
+    if (user && user.roomId) {
+      leaveRoom(socket, user.roomId);
+    }
+    
+    // 从在线用户中移除
     delete onlineUsers[socket.id];
+    
+    // 通知所有用户更新在线列表
+    io.emit('update_online_users', Object.values(onlineUsers));
   });
 });
 
-// 处理用户离开
-function handleUserLeave(socket) {
-  const user = onlineUsers[socket.id];
-  if (!user || !user.roomId) return;
-  
-  const roomId = user.roomId;
-  const room = getRoom(roomId);
-  
+// 辅助函数
+
+// 离开房间
+function leaveRoom(socket, roomId) {
+  const room = rooms[roomId];
   if (!room) return;
   
-  // 检查是否是玩家
-  const isPlayer = room.players.some(p => p.id === socket.id);
+  const user = onlineUsers[socket.id];
+  if (!user) return;
   
-  if (isPlayer) {
-    // 从玩家列表中移除
-    leaveRoom(roomId, socket.id);
+  // 从房间中移除用户
+  const playerIndex = room.players.findIndex(p => p.id === socket.id);
+  if (playerIndex !== -1) {
+    // 是玩家
+    const player = room.players.splice(playerIndex, 1)[0];
     
-    // 如果游戏已经开始但还没结束，通知其他人
-    if (room.gameStarted && !room.gameOver) {
-      io.to(roomId).emit('game:player_left', { 
-        playerId: socket.id,
-        username: user.username
+    // 如果游戏正在进行，通知其他人玩家离开
+    if (room.gameStarted) {
+      io.to(roomId).emit('player_left', {
+        username: player.username,
+        role: player.role
       });
     }
+    
+    // 清除该玩家的超时计时器
+    if (room.timeoutTimers[player.role]) {
+      clearTimeout(room.timeoutTimers[player.role]);
+    }
   } else {
-    // 从观众列表中移除
-    removeSpectator(roomId, socket.id);
+    // 是观众
+    const spectatorIndex = room.spectators.findIndex(s => s.id === socket.id);
+    if (spectatorIndex !== -1) {
+      room.spectators.splice(spectatorIndex, 1);
+    }
   }
   
   // 离开房间
   socket.leave(roomId);
   
-  // 更新用户状态
-  onlineUsers[socket.id].roomId = null;
-  
-  // 通知房间内其他人
-  socket.to(roomId).emit('room:user_left', { 
-    userId: socket.id,
-    username: user.username,
-    wasPlayer: isPlayer
-  });
+  // 更新用户房间信息
+  user.roomId = null;
+  onlineUsers[socket.id] = user;
   
   // 如果房间空了，删除房间
-  const updatedRoom = getRoom(roomId);
-  if (updatedRoom && updatedRoom.players.length === 0 && updatedRoom.spectators.length === 0) {
-    // 房间已自动删除
-    // 更新房间列表
-    const publicRooms = getRooms().filter(r => !r.isPrivate);
-    io.emit('rooms:list', publicRooms);
+  if (room.players.length === 0 && room.spectators.length === 0) {
+    delete rooms[roomId];
+    
+    // 如果是公开房间，更新房间列表
+    if (!room.isPrivate) {
+      updatePublicRoomList();
+    }
+    
+    return;
+  }
+  
+  // 更新房间信息
+  updateRoomInfo(roomId);
+  
+  // 如果是公开房间，更新房间列表
+  if (!room.isPrivate) {
+    updatePublicRoomList();
   }
 }
 
-// 检查是否获胜
-function checkWinner(board, lastMove, isBlack) {
-  const directions = [
-    { x: 1, y: 0 },   // 水平
-    { x: 0, y: 1 },   // 垂直
-    { x: 1, y: 1 },   // 对角线
-    { x: 1, y: -1 }   // 反对角线
-  ];
+// 开始游戏
+function startGame(roomId) {
+  const room = rooms[roomId];
+  if (!room || room.players.length !== 2) return;
   
-  const { x, y } = lastMove;
-  const value = isBlack ? 'black' : 'white';
+  // 随机分配角色
+  const roles = ['black', 'white'];
+  roles.sort(() => Math.random() - 0.5);
   
-  for (const direction of directions) {
-    let count = 1; // 当前位置已经有一个棋子
-    const winningPositions = [{ x, y }];
-    
-    // 正向检查
-    for (let i = 1; i <= 4; i++) {
-      const newX = x + direction.x * i;
-      const newY = y + direction.y * i;
-      
-      if (
-        newX >= 0 && newX < 15 &&
-        newY >= 0 && newY < 15 &&
-        board[newY][newX] === value
-      ) {
-        count++;
-        winningPositions.push({ x: newX, y: newY });
-      } else {
-        break;
-      }
-    }
-    
-    // 反向检查
-    for (let i = 1; i <= 4; i++) {
-      const newX = x - direction.x * i;
-      const newY = y - direction.y * i;
-      
-      if (
-        newX >= 0 && newX < 15 &&
-        newY >= 0 && newY < 15 &&
-        board[newY][newX] === value
-      ) {
-        count++;
-        winningPositions.push({ x: newX, y: newY });
-      } else {
-        break;
-      }
-    }
-    
-    if (count >= 5) {
-      return winningPositions;
-    }
-  }
+  room.players[0].role = roles[0];
+  room.players[1].role = roles[1];
   
-  return null;
-}
-
-// 定时检查超时
-setInterval(() => {
-  const rooms = getRooms();
+  // 设置游戏状态
+  room.gameStarted = true;
+  room.currentTurn = 'black'; // 黑子先行
+  room.board = createEmptyBoard();
+  room.moveHistory = [];
+  room.blackMoves = 0;
+  room.whiteMoves = 0;
+  room.startTime = Date.now();
+  room.lastMoveTime = Date.now();
   
-  rooms.forEach(room => {
-    if (room.gameStarted && !room.gameOver && room.lastMoveTime) {
-      const currentTime = Date.now();
-      const elapsedTime = currentTime - room.lastMoveTime;
-      
-      // 如果超过5分钟（300000毫秒）
-      if (elapsedTime > 300000) {
-        // 当前玩家超时，判定为另一方胜利
-        const currentPlayerId = room.currentPlayer;
-        const winner = room.players.find(p => p.id !== currentPlayerId);
-        
-        if (winner) {
-          room.gameOver = true;
-          room.winner = winner.id;
-          
-          // 通知所有玩家游戏结果
-          io.to(room.id).emit('game:timeout', { 
-            winner: { id: winner.id, username: winner.username },
-            loser: { id: currentPlayerId }
-          });
-        }
-      }
-    }
+  // 设置黑子的超时计时器
+  setMoveTimeout(roomId, 'black');
+  
+  // 通知房间内所有人游戏开始
+  io.to(roomId).emit('game_started', {
+    black: room.players.find(p => p.role === 'black'),
+    white: room.players.find(p => p.role === 'white'),
+    currentTurn: room.currentTurn
   });
-}, 10000); // 每10秒检查一次
+  
+  // 更新房间信息
+  updateRoomInfo(roomId);
+}
+
+// 设置移动超时
+function setMoveTimeout(roomId, role) {
+  const room = rooms[roomId];
+  if (!room) return;
+  
+  // 清除现有计时器
+  if (room.timeoutTimers[role]) {
+    clearTimeout(room.timeoutTimers[role]);
+  }
+  
+  // 设置新计时器 (5分钟)
+  room.timeoutTimers[role] = setTimeout(() => {
+    // 超时，当前玩家失败
+    const player = room.players.find(p => p.role === role);
+    if (!player) return;
+    
+    room.gameStarted = false;
+    
+    // 通知房间内所有人游戏结束
+    io.to(roomId).emit('game_over', {
+      timeout: true,
+      loser: role,
+      loserUsername: player.username,
+      winner: role === 'black' ? 'white' : 'black',
+      winnerUsername: room.players.find(p => p.role !== role)?.username
+    });
+    
+    // 更新房间信息
+    updateRoomInfo(roomId);
+  }, 5 * 60 * 1000); // 5分钟
+}
+
+// 更新房间信息
+function updateRoomInfo(roomId) {
+  const room = rooms[roomId];
+  if (!room) return;
+  
+  const roomInfo = {
+    id: roomId,
+    name: room.name,
+    players: room.players,
+    spectators: room.spectators,
+    gameStarted: room.gameStarted,
+    currentTurn: room.currentTurn,
+    board: room.board,
+    blackMoves: room.blackMoves,
+    whiteMoves: room.whiteMoves,
+    startTime: room.startTime,
+    lastMoveTime: room.lastMoveTime
+  };
+  
+  io.to(roomId).emit('room_info', roomInfo);
+}
+
+// 更新公开房间列表
+function updatePublicRoomList() {
+  const publicRooms = Object.entries(rooms)
+    .filter(([_, room]) => !room.isPrivate)
+    .map(([id, room]) => ({
+      id,
+      name: room.name,
+      players: room.players.length,
+      maxPlayers: 2,
+      hasPassword: !!room.password,
+      status: room.gameStarted ? '游戏中' : '等待中'
+    }));
+  
+  io.emit('room_list', publicRooms);
+}
 
 // 启动服务器
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`服务器运行在端口 ${PORT}`);
 });
