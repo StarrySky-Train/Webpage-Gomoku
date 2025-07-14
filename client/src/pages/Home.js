@@ -31,11 +31,13 @@ const Home = () => {
       
       // 监听房间创建成功
       socket.on('room_created', ({ roomId }) => {
+        console.log(`房间创建成功，ID: ${roomId}`);
         navigate(`/game/${roomId}`);
       });
       
       // 监听房间加入成功
       socket.on('room_joined', ({ roomId }) => {
+        console.log(`成功加入房间，ID: ${roomId}`);
         navigate(`/game/${roomId}`);
       });
       

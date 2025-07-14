@@ -98,11 +98,23 @@ io.on('connection', (socket) => {
   
   // 用户加入
   socket.on('user_join', ({ username }) => {
+    // 检查用户名是否已存在
+    const isUsernameTaken = Object.values(onlineUsers).some(
+      user => user.username.toLowerCase() === username.toLowerCase() && user.id !== socket.id
+    );
+    
+    if (isUsernameTaken) {
+      return socket.emit('error', { message: '用户名已被使用，请选择其他用户名' });
+    }
+    
     onlineUsers[socket.id] = {
       id: socket.id,
       username: username || `玩家${Object.keys(onlineUsers).length + 1}`,
       roomId: null
     };
+    
+    // 通知用户登录成功
+    socket.emit('login_success', { username: onlineUsers[socket.id].username });
     
     // 通知所有用户更新在线列表
     io.emit('update_online_users', Object.values(onlineUsers));
@@ -125,7 +137,20 @@ io.on('connection', (socket) => {
   // 创建房间
   socket.on('create_room', ({ name, isPrivate, password }) => {
     const user = onlineUsers[socket.id];
-    if (!user) return;
+    if (!user) {
+      return socket.emit('error', { message: '用户未登录' });
+    }
+    
+    // 检查房间名是否已存在（仅检查公开房间）
+    if (!isPrivate && name) {
+      const isRoomNameTaken = Object.values(rooms).some(
+        room => !room.isPrivate && room.name.toLowerCase() === name.toLowerCase()
+      );
+      
+      if (isRoomNameTaken) {
+        return socket.emit('error', { message: '该房间名已被使用，请选择其他房间名' });
+      }
+    }
     
     // 如果用户已经在房间中，先离开
     if (user.roomId && rooms[user.roomId]) {
@@ -167,6 +192,8 @@ io.on('connection', (socket) => {
       roomId,
       isPrivate: rooms[roomId].isPrivate
     });
+    
+    console.log(`用户 ${user.username} 创建了房间 ${roomId}`);
     
     // 更新房间信息
     updateRoomInfo(roomId);
@@ -433,6 +460,45 @@ io.on('connection', (socket) => {
     
     // 通知所有用户更新在线列表
     io.emit('update_online_users', Object.values(onlineUsers));
+  });
+  
+  // 重新连接/验证登录状态
+  socket.on('verify_login', ({ username, id }) => {
+    // 检查用户名是否已存在
+    const isUsernameTaken = Object.values(onlineUsers).some(
+      user => user.username.toLowerCase() === username.toLowerCase() && user.id !== socket.id
+    );
+    
+    if (isUsernameTaken) {
+      return socket.emit('error', { message: '用户名已被使用，请重新登录' });
+    }
+    
+    // 创建新的用户记录
+    onlineUsers[socket.id] = {
+      id: socket.id,
+      username: username,
+      roomId: null
+    };
+    
+    // 通知用户登录成功
+    socket.emit('login_success', { username: onlineUsers[socket.id].username });
+    
+    // 通知所有用户更新在线列表
+    io.emit('update_online_users', Object.values(onlineUsers));
+    
+    // 发送房间列表给用户
+    const publicRooms = Object.entries(rooms)
+      .filter(([_, room]) => !room.isPrivate)
+      .map(([id, room]) => ({
+        id,
+        name: room.name,
+        players: room.players.length,
+        maxPlayers: 2,
+        hasPassword: !!room.password,
+        status: room.gameStarted ? '游戏中' : '等待中'
+      }));
+    
+    socket.emit('room_list', publicRooms);
   });
 });
 

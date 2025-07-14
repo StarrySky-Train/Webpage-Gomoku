@@ -51,18 +51,10 @@ const Game = () => {
     
     // 监听移动
     socket.on('move_made', (data) => {
-      const playerName = roomInfo?.players.find(p => p.role === data.player)?.username;
-      addSystemMessage(`${playerName} (${data.player === 'black' ? '黑子' : '白子'}) 落子于 (${data.row + 1}, ${data.col + 1})`);
-    });
-    
-    // 监听玩家加入
-    socket.on('player_joined', (data) => {
-      addSystemMessage(`${data.username} 加入了游戏，作为 ${data.role === 'black' ? '黑子' : '白子'}`);
-    });
-    
-    // 监听玩家离开
-    socket.on('player_left', (data) => {
-      addSystemMessage(`${data.username} (${data.role === 'black' ? '黑子' : '白子'}) 离开了游戏`);
+      if (roomInfo && roomInfo.players) {
+        const playerName = roomInfo.players.find(p => p.role === data.player)?.username;
+        addSystemMessage(`${playerName || '玩家'} (${data.player === 'black' ? '黑子' : '白子'}) 落子于 (${data.row + 1}, ${data.col + 1})`);
+      }
     });
     
     // 监听游戏结束
@@ -73,10 +65,22 @@ const Game = () => {
         addSystemMessage('游戏结束，平局！');
       } else if (data.timeout) {
         addSystemMessage(`游戏结束，${data.loserUsername} (${data.loser === 'black' ? '黑子' : '白子'}) 超时，${data.winnerUsername} (${data.winner === 'black' ? '黑子' : '白子'}) 获胜！`);
+      } else if (roomInfo && roomInfo.players) {
+        const winnerName = roomInfo.players.find(p => p.role === data.winner)?.username;
+        addSystemMessage(`游戏结束，${winnerName || '玩家'} (${data.winner === 'black' ? '黑子' : '白子'}) 获胜！`);
       } else {
-        const winnerName = roomInfo?.players.find(p => p.role === data.winner)?.username;
-        addSystemMessage(`游戏结束，${winnerName} (${data.winner === 'black' ? '黑子' : '白子'}) 获胜！`);
+        addSystemMessage(`游戏结束，${data.winner === 'black' ? '黑子' : '白子'} 获胜！`);
       }
+    });
+    
+    // 监听玩家加入
+    socket.on('player_joined', (data) => {
+      addSystemMessage(`${data.username} 加入了游戏，作为 ${data.role === 'black' ? '黑子' : '白子'}`);
+    });
+    
+    // 监听玩家离开
+    socket.on('player_left', (data) => {
+      addSystemMessage(`${data.username} (${data.role === 'black' ? '黑子' : '白子'}) 离开了游戏`);
     });
     
     // 监听错误

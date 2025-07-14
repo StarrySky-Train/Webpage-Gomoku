@@ -30,12 +30,43 @@ function App() {
 
   // 处理用户登录
   const handleLogin = (username) => {
-    const newUser = { username, id: socket.id };
-    setUser(newUser);
-    
     // 通知服务器用户加入
     socket.emit('user_join', { username });
   };
+
+  // 监听登录相关事件
+  useEffect(() => {
+    if (socket) {
+      // 监听登录成功
+      socket.on('login_success', ({ username }) => {
+        const newUser = { username, id: socket.id };
+        setUser(newUser);
+        localStorage.setItem('gomoku_user', JSON.stringify(newUser));
+      });
+
+      // 监听错误
+      socket.on('error', ({ message }) => {
+        alert(message);
+      });
+    }
+
+    return () => {
+      if (socket) {
+        socket.off('login_success');
+        socket.off('error');
+      }
+    };
+  }, [socket]);
+
+  // 在应用启动时验证登录状态
+  useEffect(() => {
+    const savedUser = localStorage.getItem('gomoku_user');
+    if (savedUser && socket) {
+      const parsedUser = JSON.parse(savedUser);
+      // 向服务器验证登录状态
+      socket.emit('verify_login', parsedUser);
+    }
+  }, [socket]);
 
   return (
     <SocketContext.Provider value={socket}>

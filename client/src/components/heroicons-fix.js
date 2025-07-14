@@ -6,18 +6,18 @@
 // 如果你使用的是@heroicons/react v2.x版本，请使用这个文件中的导出
 
 import {
-  ArrowLeft as ArrowLeftIcon,
-  Clock as ClockIcon,
-  ClipboardCopy as ClipboardCopyIcon,
-  Check as CheckIcon,
-  Home as HomeIcon,
-  LockClosed as LockClosedIcon,
-  PaperAirplane as PaperAirplaneIcon,
-  Refresh as RefreshIcon,
-  Trophy as TrophyIcon,
-  User as UserIcon,
-  UserGroup as UserGroupIcon,
-  XMark as XIcon
+  ArrowLeftIcon,
+  ClockIcon,
+  ClipboardIcon as ClipboardCopyIcon,
+  CheckIcon,
+  HomeIcon,
+  LockClosedIcon,
+  PaperAirplaneIcon,
+  ArrowPathIcon as RefreshIcon,
+  TrophyIcon,
+  UserIcon,
+  UserGroupIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 
 export {
@@ -32,5 +32,5 @@ export {
   TrophyIcon,
   UserIcon,
   UserGroupIcon,
-  XIcon
+  XMarkIcon as XIcon
 };
