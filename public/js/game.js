@@ -609,11 +609,15 @@ function addChatMessage(data) {
   
   const usernameSpan = document.createElement('span');
   usernameSpan.className = 'chat-username';
-  usernameSpan.textContent = data.username + ': ';
+  // 兼容两种消息格式
+  const username = data.username || data.senderName;
+  usernameSpan.textContent = username + ': ';
   
   const messageSpan = document.createElement('span');
   messageSpan.className = 'chat-text';
-  messageSpan.textContent = data.message;
+  // 兼容两种消息格式
+  const messageText = data.message || data.text;
+  messageSpan.textContent = messageText;
   
   messageElement.appendChild(usernameSpan);
   messageElement.appendChild(messageSpan);
@@ -621,6 +625,8 @@ function addChatMessage(data) {
   
   // 滚动到底部
   messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  
+  console.log('添加聊天消息:', data); // 调试日志
 }
 
 // 添加系统消息

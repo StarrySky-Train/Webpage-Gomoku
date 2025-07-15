@@ -367,7 +367,7 @@ io.on('connection', (socket) => {
     
     // 如果是公开房间，通知所有用户有新房间
     if (!isPrivate) {
-      socket.broadcast.emit('newRoom', {
+      io.emit('newRoom', {
         id: room.id,
         name: room.name,
         hasPassword: room.hasPassword,
@@ -376,6 +376,9 @@ io.on('connection', (socket) => {
         gameStarted: room.gameState.gameStarted
       });
     }
+    
+    // 更新房间列表
+    io.emit('updateRoomList', getRooms().filter(r => !r.isPrivate));
   });
 
   // 加入房间
@@ -432,6 +435,9 @@ io.on('connection', (socket) => {
     
     // 通知用户成功加入房间
     socket.emit('joinedRoom', room);
+    
+    // 广播更新后的房间列表给所有客户端
+    io.emit('updateRoomList', getPublicRooms());
   });
 
   // 下棋
