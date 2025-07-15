@@ -1,313 +1,108 @@
 # 五子棋在线对战系统
 
-这是一个支持实时多人对战的五子棋网页游戏，具有响应式界面和现代化UI设计。
+这是一个基于Node.js和Socket.IO开发的在线五子棋对战系统，支持多房间、实时对战、观战和聊天功能。
 
 ## 功能特点
 
-- 实时多人对战
-- 响应式游戏界面
-- 现代化UI设计
-- 自建房间功能
-- 支持私密房间（通过房间ID加入）
-- 支持公开房间（在大厅寻找对局）
-- 支持观战模式
-- 实时显示在线玩家列表
-- 计时功能（每步最长思考时间5分钟）
-- 支持观战者替补退出玩家
-- 可设置房间密码
+- **用户系统**：支持用户登录和会话恢复
+- **房间系统**：
+  - 创建公开/私密房间
+  - 密码保护
+  - 房主控制
+  - 房间列表浏览
+- **游戏功能**：
+  - 实时五子棋对战
+  - 黑白棋随机分配
+  - 胜负判定
+  - 超时检测（5分钟）
+  - 游戏重置
+- **观战系统**：
+  - 支持多人同时观战
+  - 观众可在有空位时成为玩家
+- **聊天系统**：
+  - 房间内实时聊天
+  - 聊天历史记录保存
+- **战绩记录**：
+  - 完整对局自动保存战绩
+  - 包含棋盘状态、玩家信息、聊天记录等
+
+## 技术栈
+
+- **后端**：Node.js, Express, Socket.IO
+- **前端**：HTML, CSS, JavaScript
+- **数据存储**：文件系统（JSON）
+
+## 安装与运行
+
+### 前提条件
+
+- Node.js (v12+)
+- npm
+
+### 安装步骤
+
+1. 克隆仓库
+```bash
+git clone <仓库地址>
+cd <项目文件夹>
+```
+
+2. 安装依赖
+```bash
+npm install
+```
+
+3. 启动服务器
+```bash
+node server.js
+```
+
+4. 访问应用
+在浏览器中打开 `http://localhost:3000`
 
 ## 项目结构
 
 ```
-├── client/             # 前端代码
-│   ├── public/         # 静态资源
-│   └── src/            # 源代码
-│       ├── components/ # 组件
-│       ├── pages/      # 页面
-│       ├── styles/     # 样式
-│       └── utils/      # 工具函数
-├── server/             # 后端代码
-│   ├── controllers/    # 控制器
-│   ├── models/         # 数据模型
-│   ├── routes/         # 路由
-│   └── utils/          # 工具函数
-└── README.md           # 项目说明
+/
+├── public/              # 前端静态文件
+│   ├── index.html       # 登录页面
+│   ├── lobby.html       # 大厅页面
+│   ├── game.html        # 游戏页面
+│   ├── css/             # 样式文件
+│   └── js/              # 前端JavaScript
+├── data/                # 数据存储目录
+│   ├── rooms.json       # 房间数据
+│   ├── users.json       # 用户数据
+│   └── records/         # 对局记录
+├── server.js            # 服务器主文件
+├── package.json         # 项目配置
+└── README.md            # 项目说明
 ```
 
-## 技术栈
+## 使用说明
 
-- 前端：React.js, Socket.io-client, TailwindCSS
-- 后端：Node.js, Express, Socket.io
-- 数据库：MongoDB (可选)
+1. **登录**：输入用户名进入系统
+2. **创建房间**：在大厅页面点击"创建房间"，设置房间名称和是否私密
+3. **加入房间**：在房间列表中点击房间加入，私密房间需要输入密码
+4. **游戏操作**：
+   - 等待两名玩家加入后自动开始游戏
+   - 黑棋先行，点击棋盘放置棋子
+   - 连成五子即获胜
+5. **聊天**：在游戏页面下方输入框发送消息
+6. **观战**：当房间已有两名玩家时，新加入的用户自动成为观众
+7. **成为玩家**：当有玩家离开时，观众可以点击"成为玩家"按钮加入游戏
 
-## 部署指南
+## 数据持久化
 
-## 目录
+- 所有房间和用户数据保存在data目录下的JSON文件中
+- 完整的对局记录（包含聊天历史）保存在data/records目录下
 
-1. [前提条件](#前提条件)
-2. [本地开发](#本地开发)
-3. [服务器部署](#服务器部署)
-   - [使用普通VPS部署](#使用普通vps部署)
-   - [使用Vercel和Heroku部署](#使用vercel和heroku部署)
-4. [配置说明](#配置说明)
-5. [常见问题](#常见问题)
+## 注意事项
 
-## 前提条件
+- 玩家超过5分钟不下棋将被判定为超时，对方获胜
+- 当房间内没有任何人时，房间将被自动删除
+- 对局完整结束后（有胜负结果），战绩将被自动保存
 
-在开始部署之前，请确保您已经安装了以下软件：
+## 许可证
 
-- Node.js (v14.0.0 或更高版本)
-- npm (v6.0.0 或更高版本)
-- Git
-
-## 本地开发
-
-1. 克隆项目到本地：
-
-```bash
-git clone <项目仓库地址>
-cd <项目文件夹>
-```
-
-2. 安装依赖：
-
-```bash
-npm run install-all
-```
-
-3. 创建环境变量文件：
-
-```bash
-cp .env.example .env
-```
-
-4. 修改 `.env` 文件中的配置（如有必要）。
-
-5. 启动开发服务器：
-
-```bash
-npm run dev-all
-```
-
-这将同时启动前端和后端服务器。前端服务器运行在 http://localhost:3000，后端服务器运行在 http://localhost:5000。
-
-## 服务器部署
-
-### 使用普通VPS部署
-
-#### 1. 准备服务器环境
-
-以 Ubuntu 20.04 为例：
-
-```bash
-# 更新系统
-sudo apt update && sudo apt upgrade -y
-
-# 安装 Node.js 和 npm
-curl -fsSL https://deb.nodesource.com/setup_16.x | sudo -E bash -
-sudo apt-get install -y nodejs
-
-# 安装 Git
-sudo apt-get install -y git
-
-# 安装 PM2 (用于进程管理)
-sudo npm install -g pm2
-```
-
-#### 2. 克隆和设置项目
-
-```bash
-# 克隆项目
-git clone <项目仓库地址> /var/www/gomoku-online
-cd /var/www/gomoku-online
-
-# 安装依赖
-npm run install-all
-
-# 创建环境变量文件
-cp .env.example .env
-```
-
-编辑 `.env` 文件，设置生产环境变量：
-
-```
-NODE_ENV=production
-PORT=5000
-```
-
-#### 3. 构建前端
-
-```bash
-cd client
-npm run build
-cd ..
-```
-
-#### 4. 使用 PM2 启动服务
-
-```bash
-pm2 start server/index.js --name "gomoku-online"
-```
-
-#### 5. 设置 Nginx 反向代理（可选但推荐）
-
-安装 Nginx：
-
-```bash
-sudo apt-get install -y nginx
-```
-
-创建 Nginx 配置文件：
-
-```bash
-sudo nano /etc/nginx/sites-available/gomoku-online
-```
-
-添加以下配置：
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com www.your-domain.com;
-
-    location / {
-        proxy_pass http://localhost:5000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
-
-启用配置并重启 Nginx：
-
-```bash
-sudo ln -s /etc/nginx/sites-available/gomoku-online /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl restart nginx
-```
-
-#### 6. 设置 SSL（可选但推荐）
-
-使用 Certbot 获取 Let's Encrypt 证书：
-
-```bash
-sudo apt-get install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d your-domain.com -d www.your-domain.com
-```
-
-按照提示完成 SSL 设置。
-
-### 使用Vercel和Heroku部署
-
-#### 前端部署到 Vercel
-
-1. 在 Vercel 上创建账户并安装 Vercel CLI：
-
-```bash
-npm install -g vercel
-```
-
-2. 在项目的 `client` 目录中创建 `vercel.json` 文件：
-
-```json
-{
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
-}
-```
-
-3. 部署前端：
-
-```bash
-cd client
-vercel
-```
-
-按照提示完成部署。
-
-#### 后端部署到 Heroku
-
-1. 在 Heroku 上创建账户并安装 Heroku CLI：
-
-```bash
-npm install -g heroku
-heroku login
-```
-
-2. 在项目根目录创建 `Procfile`：
-
-```
-web: node server/index.js
-```
-
-3. 修改 `package.json` 中的 `engines` 字段：
-
-```json
-"engines": {
-  "node": "16.x"
-}
-```
-
-4. 创建 Heroku 应用并部署：
-
-```bash
-heroku create gomoku-online-api
-git push heroku main
-```
-
-5. 设置环境变量：
-
-```bash
-heroku config:set NODE_ENV=production
-```
-
-6. 更新前端的 API 地址：
-
-在 `client/src/App.js` 中，修改 Socket.io 连接：
-
-```javascript
-const socket = io(process.env.NODE_ENV === 'production' ? 'https://gomoku-online-api.herokuapp.com' : 'http://localhost:5000');
-```
-
-然后重新部署前端。
-
-## 配置说明
-
-### 环境变量
-
-- `NODE_ENV`: 环境模式，可选值为 `development` 或 `production`
-- `PORT`: 服务器端口号，默认为 `5000`
-
-## 常见问题
-
-### 1. WebSocket 连接失败
-
-如果您在使用 Nginx 作为反向代理时遇到 WebSocket 连接问题，请确保 Nginx 配置中包含以下内容：
-
-```nginx
-proxy_set_header Upgrade $http_upgrade;
-proxy_set_header Connection 'upgrade';
-```
-
-### 2. 跨域问题
-
-如果前端和后端部署在不同的域名下，可能会遇到跨域问题。请确保在 `server/index.js` 中正确配置了 CORS：
-
-```javascript
-const io = socketIo(server, {
-  cors: {
-    origin: "您的前端域名",
-    methods: ["GET", "POST"]
-  }
-});
-```
-
-### 3. 服务器资源要求
-
-本应用对服务器资源要求不高，一个基本的 VPS（1GB RAM, 1 vCPU）就足够运行。如果预期有大量用户同时在线，可以考虑增加服务器资源。
-
-### 4. 持久化数据
-
-当前版本不包含数据持久化功能。如果需要保存游戏记录、用户数据等，需要集成数据库（如 MongoDB）并修改相应的代码。
+[MIT](LICENSE)

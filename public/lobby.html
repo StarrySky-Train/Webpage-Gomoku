@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>五子棋在线对战 - 游戏大厅</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- 大厅页面 -->
+  <div id="lobby-page" class="page active">
+    <header class="lobby-header">
+      <div class="user-info">
+        <span class="avatar"><i class="fas fa-user"></i></span>
+        <span id="user-name">玩家</span>
+      </div>
+      <div class="lobby-actions">
+        <button id="create-room-btn" class="btn"><i class="fas fa-plus"></i> 创建房间</button>
+        <button id="join-private-btn" class="btn"><i class="fas fa-lock"></i> 加入私密房间</button>
+        <button id="refresh-rooms-btn" class="btn"><i class="fas fa-sync-alt"></i> 刷新</button>
+      </div>
+    </header>
+    
+    <main class="lobby-content">
+      <h2>在线房间</h2>
+      <div id="room-list" class="room-list">
+        <!-- 房间列表将通过JavaScript动态生成 -->
+      </div>
+    </main>
+    
+    <!-- 创建房间弹窗 -->
+    <div id="create-room-modal" class="modal">
+      <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h2>创建房间</h2>
+        <div class="form-group">
+          <label for="room-name">房间名称</label>
+          <input type="text" id="room-name" placeholder="请输入房间名称" maxlength="30">
+        </div>
+        <div class="form-group">
+          <label for="room-type">房间类型</label>
+          <select id="room-type">
+            <option value="public">公开房间</option>
+            <option value="private">私密房间</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="room-password">房间密码 (可选)</label>
+          <input type="password" id="room-password" placeholder="留空表示无密码">
+        </div>
+        <button id="confirm-create-room" class="btn btn-primary">创建</button>
+      </div>
+    </div>
+    
+    <!-- 加入私密房间弹窗 -->
+    <div id="join-private-modal" class="modal">
+      <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h2>加入私密房间</h2>
+        <div class="form-group">
+          <label for="private-room-id">房间ID</label>
+          <input type="text" id="private-room-id" placeholder="请输入房间ID">
+        </div>
+        <div class="form-group">
+          <label for="private-room-password">房间密码 (如需)</label>
+          <input type="password" id="private-room-password" placeholder="如果房间有密码，请输入">
+        </div>
+        <button id="confirm-join-private" class="btn btn-primary">加入</button>
+      </div>
+    </div>
+    
+    <!-- 输入密码弹窗 -->
+    <div id="password-modal" class="modal">
+      <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h2>输入房间密码</h2>
+        <div class="form-group">
+          <label for="room-password-input">密码</label>
+          <input type="password" id="room-password-input" placeholder="请输入房间密码">
+        </div>
+        <button id="confirm-password" class="btn btn-primary">确认</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 通知组件 -->
+  <div id="notification-container" class="notification-container"></div>
+
+  <!-- 加载脚本 -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/lobby.js"></script>
+</body>
+</html>

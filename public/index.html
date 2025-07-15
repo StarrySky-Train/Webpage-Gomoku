@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>五子棋在线对战 - 登录</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <!-- 登录页面 -->
+  <div id="login-page" class="page active">
+    <div class="login-container">
+      <div class="login-header">
+        <h1>五子棋在线对战</h1>
+        <p>与全球玩家一起享受五子棋的乐趣</p>
+      </div>
+      <div class="login-form">
+        <div class="form-group">
+          <label for="username">昵称</label>
+          <input type="text" id="username" placeholder="请输入您的昵称" maxlength="20">
+        </div>
+        <button id="login-btn" class="btn btn-primary">进入游戏</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 通知组件 -->
+  <div id="notification-container" class="notification-container"></div>
+
+  <!-- 加载脚本 -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
