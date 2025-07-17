@@ -121,6 +121,7 @@ function initializeSocket() {
         currentRoom = data.room;
         gameState = data.room.gameState;
         stopGameTimer();
+        gameStartTime = null; // 重置游戏开始时间
         updateGameDisplay();
 
         const colorText = data.winnerColor === 1 ? '黑子' : '白子';
@@ -663,6 +664,10 @@ function switchToLobby() {
     gameRoomScreen.classList.remove('active');
     lobbyScreen.classList.add('active');
 
+    // 停止计时器并重置相关变量
+    stopGameTimer();
+    gameStartTime = null;
+
     currentRoom = null;
     gameState = null;
     stopGameTimer();
@@ -763,9 +768,12 @@ function updateGameInfo() {
     blackStonesEl.textContent = blackCount;
     whiteStonesEl.textContent = whiteCount;
 
-    // 更新游戏时长
+    // 对局时间现在由计时器专门处理，这里只在游戏开始时初始化一次
     if (gameState.status === 'playing' && gameStartTime) {
         updateGameDuration();
+    } else if (gameState.status !== 'playing') {
+        // 游戏未开始或已结束时重置时间显示
+        gameDurationEl.textContent = '00:00';
     }
 }
 
@@ -826,7 +834,10 @@ function addChatMessage(message) {
 // 开始游戏计时器
 function startGameTimer() {
     stopGameTimer();
-    gameTimer = setInterval(updateGameTimer, 1000);
+    gameTimer = setInterval(() => {
+        updateGameTimer();
+        updateGameDuration(); // 同时更新对局时间
+    }, 1000);
 }
 
 // 停止游戏计时器
@@ -862,13 +873,19 @@ function updateGameTimer() {
 
 // 更新游戏时长
 function updateGameDuration() {
-    if (!gameStartTime) return;
+    if (!gameStartTime || !gameState || gameState.status !== 'playing') {
+        return;
+    }
 
     const elapsed = Date.now() - gameStartTime.getTime();
     const minutes = Math.floor(elapsed / 60000);
     const seconds = Math.floor((elapsed % 60000) / 1000);
 
-    gameDurationEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    const timeText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+    if (gameDurationEl) {
+        gameDurationEl.textContent = timeText;
+    }
 }
 
 // 输入验证函数
