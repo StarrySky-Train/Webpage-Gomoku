@@ -45,7 +45,7 @@
    
    ```bash
    git clone https://github.com/StarrySky-Train/Webpage-Gomoku.git
-   cd gomoku-online
+   cd Webpage-Gomoku
    ```
 
 2. **安装依赖**
@@ -69,7 +69,6 @@ npm run dev
 
 ```
 4. **访问游戏**
-
 ```
 
 ```
@@ -77,10 +76,10 @@ npm run dev
 
 ```bash
 # 构建镜像
-docker build -t gomoku-online .
+docker build -t Webpage-Gomoku .
 
 # 运行容器
-docker run -p 3000:3000 gomoku-online
+docker run -p 3000:3000 Webpage-Gomoku
 ```
 
 ## 🎯 游戏规则
@@ -110,7 +109,7 @@ docker run -p 3000:3000 gomoku-online
 ## 📁 项目架构
 
 ```
-gomoku-online/
+Webpage-Gomoku/
 ├── 📄 app.js                 # 服务器主程序
 ├── 📄 package.json           # 项目配置文件
 ├── 📄 README.md             # 项目说明文档
@@ -201,13 +200,13 @@ npm --version
 
 ```bash
 # 上传代码到服务器
-scp -r ./gomoku-online user@your-server:/home/user/
+scp -r ./Webpage-Gomoku user@your-server:/home/user/
 
 # 连接服务器
 ssh user@your-server
 
 # 进入项目目录
-cd /home/user/gomoku-online
+cd /home/user/Webpage-Gomoku
 
 # 安装依赖
 npm install
@@ -223,7 +222,7 @@ npm start
 npm install -g pm2
 
 # 启动应用
-pm2 start app.js --name "gomoku-online"
+pm2 start app.js --name "Webpage-Gomoku"
 
 # 设置开机自启
 pm2 startup
@@ -370,22 +369,9 @@ server {
 
 ## 📝 更新日志
 
-### 🎉 v1.2.0 (2024-12-01)
+## 🎉 v1.0.0 (2025-07-17)
 
-- ✨ 新增随机验证码系统
-- 🐛 修复玩家颜色显示问题
-- 🎨 优化用户界面体验
-- 📚 完善项目文档
-
-### 🎉 v1.1.0 (2024-11-01)
-
-- ✨ 新增观众替换功能
-- 🔧 优化房间管理系统
-- 🐛 修复连接稳定性问题
-
-### 🎉 v1.0.0 (2024-10-01)
-
-- 🎮 基础五子棋游戏功能
+- 🎮 五子棋游戏功能
 - 🏠 房间系统和实时对战
 - 👥 用户注册登录系统
 - 💬 聊天系统
@@ -436,10 +422,10 @@ npm run lint
 
 ## 📞 联系我们
 
-- 🏠 **项目主页**: [GitHub Repository](https://github.com/your-username/gomoku-online)
-- 🐛 **问题反馈**: [Issues](https://github.com/your-username/gomoku-online/issues)
-- 💬 **讨论交流**: [Discussions](https://github.com/your-username/gomoku-online/discussions)
-- 📧 **邮箱联系**: your-email@example.com
+- 🏠 **项目主页**: [Webpage-Gomoku](https://github.com/StarrySky-Train/Webpage-Gomoku)
+- 🐛 **问题反馈**: [Issues](https://github.com/StarrySky-Train/Webpage-Gomoku/issues)
+- 💬 **讨论交流**: [Discussions](https://github.com/StarrySky-Train/Webpage-Gomoku/discussions)
+- 📧 **邮箱联系**: one@094521.xyz
 
 ---
 
@@ -447,6 +433,6 @@ npm run lint
 
 **⭐ 如果这个项目对你有帮助，请给它一个 Star！⭐**
 
-[🎮 立即体验](http://localhost:3000) | [📖 查看文档](README.md) | [🐛 报告问题](https://github.com/your-username/gomoku-online/issues)
+[🎮 立即体验](https://wzq.094521.xyz) | [📖 查看文档](README.md) | [🐛 报告问题](https://github.com/StarrySky-Train/Webpage-Gomoku/issues)
 
 </div>
