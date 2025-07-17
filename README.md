@@ -2,8 +2,6 @@
 
 一个现代化的实时多人在线五子棋游戏，基于 Node.js 和 Socket.IO 构建，支持全球玩家实时对战。
 
-  
-
 ## ✨ 核心特性
 
 ### 🎮 游戏功能
@@ -46,7 +44,7 @@
 1. **获取代码**
    
    ```bash
-   git clone https://github.com/your-username/gomoku-online.git
+   git clone https://github.com/StarrySky-Train/Webpage-Gomoku.git
    cd gomoku-online
    ```
 
@@ -71,9 +69,8 @@ npm run dev
 
 ```
 4. **访问游戏**
-```
 
-http://localhost:3000
+```
 
 ```
 ### 🐳 Docker 部署
