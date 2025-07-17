@@ -1,35 +1,360 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>五子棋在线对战 - 登录</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="css/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线五子棋</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-  <!-- 登录页面 -->
-  <div id="login-page" class="page active">
-    <div class="login-container">
-      <div class="login-header">
-        <h1>五子棋在线对战</h1>
-        <p>与全球玩家一起享受五子棋的乐趣</p>
-      </div>
-      <div class="login-form">
-        <div class="form-group">
-          <label for="username">昵称</label>
-          <input type="text" id="username" placeholder="请输入您的昵称" maxlength="20">
+    <!-- 登录界面 -->
+    <div id="loginScreen" class="screen">
+        <div class="auth-container">
+            <div class="auth-header">
+                <h1>在线五子棋</h1>
+                <p>欢迎来到在线五子棋游戏平台</p>
+            </div>
+            <form class="auth-form">
+                <div class="form-group">
+                    <label for="loginNickname">用户名</label>
+                    <input type="text" id="loginNickname" placeholder="请输入用户名（英文字母+数字）" required maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">密码</label>
+                    <input type="password" id="loginPassword" placeholder="请输入密码（英文字母+数字）" required maxlength="30">
+                </div>
+                <div class="auth-actions">
+                    <button type="button" id="loginBtn" class="btn btn-primary">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>登录</span>
+                    </button>
+                </div>
+            </form>
+            <div class="auth-switch">
+                <p>还没有账号？<button type="button" id="showRegisterBtn">立即注册</button></p>
+            </div>
         </div>
-        <button id="login-btn" class="btn btn-primary">进入游戏</button>
-      </div>
     </div>
-  </div>
 
-  <!-- 通知组件 -->
-  <div id="notification-container" class="notification-container"></div>
+    <!-- 注册界面 -->
+    <div id="registerScreen" class="screen">
+        <div class="auth-container">
+            <div class="auth-header">
+                <h1>注册账号</h1>
+                <p>创建您的五子棋账号</p>
+            </div>
+            <form class="auth-form">
+                <div class="form-group">
+                    <label for="registerNickname">用户名</label>
+                    <input type="text" id="registerNickname" placeholder="3-20位英文字母+数字" required maxlength="20">
+                    <small class="form-hint">只能包含英文字母和数字，长度3-20位</small>
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">密码</label>
+                    <input type="password" id="registerPassword" placeholder="6-30位英文字母+数字" required maxlength="30">
+                    <small class="form-hint">只能包含英文字母和数字，长度6-30位</small>
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">确认密码</label>
+                    <input type="password" id="confirmPassword" placeholder="请再次输入密码" required maxlength="30">
+                </div>
+                <div class="form-group">
+                    <label>验证码</label>
+                    <div class="captcha-group">
+                        <div id="captchaText" class="captcha-text">1 + 1 = ?</div>
+                        <button type="button" id="refreshCaptchaBtn" class="refresh-captcha">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        <input type="number" id="registerCaptcha" class="captcha-input" placeholder="答案" required>
+                    </div>
+                </div>
+                <div class="auth-actions">
+                    <button type="button" id="registerBtn" class="btn btn-primary">
+                        <i class="fas fa-user-plus"></i>
+                        <span>注册</span>
+                    </button>
+                </div>
+            </form>
+            <div class="auth-switch">
+                <p>已有账号？<button type="button" id="showLoginBtn">立即登录</button></p>
+            </div>
+        </div>
+    </div>
 
-  <!-- 加载脚本 -->
-  <script src="/socket.io/socket.io.js"></script>
-  <script src="js/main.js"></script>
+    <!-- 大厅界面 -->
+    <div id="lobby" class="screen">
+        <!-- 顶部导航栏 -->
+        <header class="lobby-header">
+            <div class="header-left">
+                <div class="logo">
+                    <i class="fas fa-chess-board"></i>
+                    <span class="logo-text">在线五子棋</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="user-info">
+                    <i class="fas fa-user"></i>
+                    <span id="userNickname">加载中...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主要内容区域 -->
+        <main class="lobby-main">
+            <!-- 操作按钮区域 -->
+            <div class="action-section">
+                <div class="action-buttons">
+                    <button id="createRoomBtn" class="action-btn create-btn">
+                        <i class="fas fa-plus"></i>
+                        <span>创建房间</span>
+                    </button>
+                    <button id="findRoomBtn" class="action-btn join-btn">
+                        <i class="fas fa-search"></i>
+                        <span>查找房间</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 房间列表区域 -->
+            <div class="rooms-section">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <i class="fas fa-home"></i>
+                        在线房间
+                    </h2>
+                    <div class="room-count">
+                        <span id="roomCount">0</span> 个房间
+                    </div>
+                </div>
+
+                <div class="rooms-container">
+                    <div id="roomsList" class="rooms-grid">
+                        <!-- 房间列表将通过JavaScript生成 -->
+                    </div>
+
+                    <!-- 空状态 -->
+                    <div id="emptyState" class="empty-state" style="display: none;">
+                        <div class="empty-icon">
+                            <i class="fas fa-coffee"></i>
+                        </div>
+                        <h3 class="empty-title">暂无在线房间</h3>
+                        <p class="empty-subtitle">创建一个房间开始游戏吧！</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- 游戏房间界面 -->
+    <div id="gameRoom" class="screen">
+        <!-- 顶部导航栏 -->
+        <header class="game-header">
+            <button id="backToLobbyBtn" class="header-btn">
+                <i class="fas fa-arrow-left"></i>
+                <span>返回大厅</span>
+            </button>
+            <div class="room-info">
+                <h1 id="roomName" class="room-title">房间名称</h1>
+                <span id="roomId" class="room-id">ID: #12345</span>
+            </div>
+            <div class="header-actions">
+                <button id="restartGameBtn" class="header-btn restart-btn" style="display: none;">
+                    <i class="fas fa-redo"></i>
+                    <span>重新开始</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- 主要游戏区域 -->
+        <main class="game-main">
+            <!-- 左侧信息面板 -->
+            <aside class="game-sidebar">
+                <!-- 当前玩家状态 -->
+                <div class="status-card">
+                    <div class="card-header">
+                        <i class="fas fa-gamepad"></i>
+                        <h3>游戏状态</h3>
+                    </div>
+                    <div id="currentPlayerInfo" class="current-player-info">
+                        <div class="player-turn">
+                            <span class="player-indicator"></span>
+                            <span class="player-name">等待玩家...</span>
+                        </div>
+                        <div id="gameTimer" class="game-timer">
+                            <i class="fas fa-clock"></i>
+                            <span class="timer-text">05:00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 玩家列表 -->
+                <div class="players-card">
+                    <div class="card-header">
+                        <i class="fas fa-users"></i>
+                        <h3>对战玩家</h3>
+                    </div>
+                    <div id="playersList" class="players-list">
+                        <!-- 玩家列表将通过JavaScript生成 -->
+                    </div>
+                    <!-- 观众加入游戏按钮 -->
+                    <div id="spectatorJoinArea" class="spectator-join-area" style="display: none;">
+                        <button id="joinAsPlayerBtn" class="btn btn-primary join-player-btn">
+                            <i class="fas fa-play"></i>
+                            加入游戏
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 对局统计 -->
+                <div class="stats-card">
+                    <div class="card-header">
+                        <i class="fas fa-chart-bar"></i>
+                        <h3>对局统计</h3>
+                    </div>
+                    <div id="gameInfo" class="game-stats">
+                        <div class="stat-item">
+                            <div class="stat-label">对局时间</div>
+                            <div id="gameDuration" class="stat-value">00:00</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">黑子落子</div>
+                            <div id="blackStones" class="stat-value">0</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">白子落子</div>
+                            <div id="whiteStones" class="stat-value">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 观战者列表 -->
+                <div class="spectators-card">
+                    <div class="card-header">
+                        <i class="fas fa-eye"></i>
+                        <h3>观战者</h3>
+                        <span class="spectator-count">0</span>
+                    </div>
+                    <div id="spectatorsList" class="spectators-list">
+                        <!-- 观战者列表将通过JavaScript生成 -->
+                    </div>
+                </div>
+
+                <!-- 聊天区域 -->
+                <div class="chat-card">
+                    <div class="card-header">
+                        <i class="fas fa-comments"></i>
+                        <h3>聊天</h3>
+                    </div>
+                    <div id="chatMessages" class="chat-messages">
+                        <!-- 聊天消息将通过JavaScript生成 -->
+                    </div>
+                    <div class="chat-input-area">
+                        <input type="text" id="chatInput" placeholder="输入消息..." maxlength="100">
+                        <button id="sendChatBtn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 右侧棋盘区域 -->
+            <section class="board-container">
+                <div id="gameBoard" class="game-board">
+                    <!-- 棋盘将通过JavaScript生成 -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 创建房间模态框 -->
+    <div id="createRoomModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>创建房间</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="roomNameInput">房间名称</label>
+                    <input type="text" id="roomNameInput" placeholder="输入房间名称" maxlength="20">
+                </div>
+
+                <div class="form-group">
+                    <label for="roomPasswordInput">房间密码（可选）</label>
+                    <input type="password" id="roomPasswordInput" placeholder="设置房间密码，留空则无密码" maxlength="20">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="confirmCreateRoom" class="btn btn-primary">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 查找房间模态框 -->
+    <div id="findRoomModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>查找房间</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="findRoomIdInput">房间ID</label>
+                    <input type="text" id="findRoomIdInput" placeholder="请输入房间ID" maxlength="8">
+                </div>
+                <div class="form-group">
+                    <label for="findRoomPasswordInput">房间密码（如有）</label>
+                    <input type="password" id="findRoomPasswordInput" placeholder="请输入房间密码，无密码请留空" maxlength="20">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="confirmFindRoom" class="btn btn-primary">加入房间</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加入房间密码模态框 -->
+    <div id="joinRoomModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>输入房间密码</h3>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="joinRoomPasswordInput">房间密码</label>
+                    <input type="password" id="joinRoomPasswordInput" placeholder="请输入房间密码" maxlength="20">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="confirmJoinRoom" class="btn btn-primary">加入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 对局结束弹窗 -->
+    <div id="gameEndModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>对局结束</h3>
+            </div>
+            <div class="modal-body">
+                <div id="gameResult" class="game-result"></div>
+                <p>是否继续下一局？</p>
+                <div class="countdown-timer">
+                    <span id="countdownText">20秒后自动继续</span>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="continueGameBtn" class="btn btn-primary">继续</button>
+                <button id="becomeSpectatorBtn" class="btn btn-ghost">成为观众</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载Socket.IO -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
